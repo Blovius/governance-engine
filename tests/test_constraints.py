@@ -32,6 +32,7 @@ def test_quorum_passes_when_met():
     action = Action(action_id="a1", actor_id="chair", kind="vote", payload={"matter_id": "deal_x"})
     result = QuorumRequired.evaluate(state, action)
     assert result.status == ConstraintStatus.PASS
+    assert result.applies is True
 
 
 def test_quorum_blocks_when_not_met():
@@ -64,6 +65,7 @@ def test_declare_interest_passes_once_declared():
     action = Action(action_id="a1", actor_id="exec_director", kind="propose", payload={"matter_id": "deal_x"})
     result = DeclareInterest.evaluate(state, action)
     assert result.status == ConstraintStatus.PASS
+    assert result.applies is True
 
 
 def test_conflicted_director_cannot_vote_without_authorisation():
@@ -80,6 +82,7 @@ def test_conflicted_director_can_vote_once_board_authorises():
     action = Action(action_id="a1", actor_id="exec_director", kind="vote", payload={"matter_id": "deal_x"})
     result = ConflictOfInterestVote.evaluate(state, action)
     assert result.status == ConstraintStatus.PASS
+    assert result.applies is True  # rule applied - the defeater is what let it pass
 
 
 def test_unconflicted_director_vote_unaffected_by_conflict_rule():
@@ -87,6 +90,7 @@ def test_unconflicted_director_vote_unaffected_by_conflict_rule():
     action = Action(action_id="a1", actor_id="ned_1", kind="vote", payload={"matter_id": "deal_x"})
     result = ConflictOfInterestVote.evaluate(state, action)
     assert result.status == ConstraintStatus.PASS  # rule does not even apply
+    assert result.applies is False
 
 
 def test_proper_purpose_blocks_when_flagged():
@@ -136,6 +140,7 @@ def test_independent_majority_passes_with_full_board_present():
                      payload={"matter_id": "related_party_contract", "outcome": "approved"})
     result = IndependentMajorityRequired.evaluate(state, action)
     assert result.status == ConstraintStatus.PASS  # chair+ned_1+ned_2 = 3/5, majority
+    assert result.applies is True
 
 
 def test_independent_majority_blocks_when_neds_have_left():
@@ -153,6 +158,7 @@ def test_independent_majority_does_not_apply_to_non_related_party_matter():
                      payload={"matter_id": "routine_matter", "outcome": "approved"})
     result = IndependentMajorityRequired.evaluate(state, action)
     assert result.status == ConstraintStatus.PASS  # rule doesn't even apply
+    assert result.applies is False
 
 
 # --- MaterialityFilingRequired: a sequence constraint ---
@@ -175,6 +181,7 @@ def test_materiality_filing_passes_once_filed():
     action = Action(action_id="a1", actor_id="chair", kind="close_contract", payload={})
     result = MaterialityFilingRequired.evaluate(state, action)
     assert result.status == ConstraintStatus.PASS
+    assert result.applies is True
 
 
 def test_materiality_filing_does_not_apply_when_not_material():
@@ -185,6 +192,7 @@ def test_materiality_filing_does_not_apply_when_not_material():
     action = Action(action_id="a1", actor_id="chair", kind="close_contract", payload={})
     result = MaterialityFilingRequired.evaluate(state, action)
     assert result.status == ConstraintStatus.PASS  # never triggered - not material
+    assert result.applies is False
 
 
 # --- CapitalMaintenanceCheck: a genuinely computed rule ---
@@ -208,6 +216,7 @@ def test_capital_maintenance_passes_payment_within_reserves():
     action = Action(action_id="a1", actor_id="cfo", kind="authorise_payment", payload={"amount": 150_000})
     result = CapitalMaintenanceCheck.evaluate(state, action)
     assert result.status == ConstraintStatus.PASS
+    assert result.applies is True
 
 
 if __name__ == "__main__":

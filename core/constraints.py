@@ -37,13 +37,11 @@ class ConstraintResult:
     rule_id: str
     status: ConstraintStatus
     mode: Mode
+    applies: bool = False          # True whenever applies_when() was True,
+                                    # regardless of whether it passed, was defeated, or blocked
     message: str = ""              # populated only when status != PASS
     remediable: bool = False
     remediation: Optional[str] = None
-
-    @property
-    def applies(self) -> bool:
-        return self.status != ConstraintStatus.PASS or self.message != ""
 
 
 Predicate = Callable[[DecisionState, Action], bool]
@@ -69,18 +67,18 @@ class DefeasibleRule:
 
     def evaluate(self, state: DecisionState, action: Action) -> ConstraintResult:
         if not self.applies_when(state, action):
-            return ConstraintResult(self.rule_id, ConstraintStatus.PASS, self.mode)
+            return ConstraintResult(self.rule_id, ConstraintStatus.PASS, self.mode, applies=False)
 
         if any(defeater(state, action) for defeater in self.defeated_when):
             # An exception fired: the default conclusion is withdrawn.
-            return ConstraintResult(self.rule_id, ConstraintStatus.PASS, self.mode)
+            return ConstraintResult(self.rule_id, ConstraintStatus.PASS, self.mode, applies=True)
 
         satisfied = self.check(state, action)
         if satisfied:
-            return ConstraintResult(self.rule_id, ConstraintStatus.PASS, self.mode)
+            return ConstraintResult(self.rule_id, ConstraintStatus.PASS, self.mode, applies=True)
 
         status = ConstraintStatus.WARN if self.mode == Mode.SYNTHESISE else ConstraintStatus.BLOCK
         return ConstraintResult(
-            self.rule_id, status, self.mode,
+            self.rule_id, status, self.mode, applies=True,
             message=self.message, remediable=self.remediable, remediation=self.remediation,
         )

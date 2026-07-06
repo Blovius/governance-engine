@@ -24,6 +24,7 @@ def test_creditor_duty_not_raised_while_solvent():
     action = Action(action_id="a1", actor_id="chair", kind="vote", payload={})
     result = CreditorDutyConsideration.evaluate(state, action)
     assert result.status == ConstraintStatus.PASS  # rule doesn't even apply
+    assert result.applies is False
 
 
 def test_creditor_duty_raised_once_insolvent():
@@ -48,6 +49,7 @@ def test_wrongful_trading_does_not_apply_while_solvent():
     action = Action(action_id="a1", actor_id="cfo", kind="incur_new_credit", payload={"amount": 10_000})
     result = WrongfulTradingGate.evaluate(state, action)
     assert result.status == ConstraintStatus.PASS  # solvent - doesn't apply regardless of the other flag
+    assert result.applies is False
 
 
 def test_wrongful_trading_blocks_when_insolvent_and_no_prospect():
@@ -69,6 +71,7 @@ def test_wrongful_trading_defeated_once_advice_sought():
     action = Action(action_id="a1", actor_id="cfo", kind="incur_new_credit", payload={"amount": 10_000})
     result = WrongfulTradingGate.evaluate(state, action)
     assert result.status == ConstraintStatus.PASS  # defeater fired
+    assert result.applies is True  # rule applied - the defeater is what let it pass
 
 
 def test_wrongful_trading_does_not_apply_if_prospect_still_reasonable():
@@ -80,6 +83,7 @@ def test_wrongful_trading_does_not_apply_if_prospect_still_reasonable():
     action = Action(action_id="a1", actor_id="cfo", kind="incur_new_credit", payload={"amount": 10_000})
     result = WrongfulTradingGate.evaluate(state, action)
     assert result.status == ConstraintStatus.PASS
+    assert result.applies is False
 
 
 # --- End-to-end: the full deterioration narrative ---

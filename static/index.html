@@ -97,7 +97,8 @@
   .chip .role { color: var(--brass-dark); font-size: 0.72rem; }
 
   section.actions { margin-bottom: 2.5rem; }
-  .actions h2, .log h2 {
+  .debrief-section { margin-bottom: 2.5rem; }
+  .actions h2, .log h2, .debrief-section h2 {
     font-family: "Courier New", monospace;
     font-size: 0.78rem;
     letter-spacing: 0.14em;
@@ -173,12 +174,59 @@
 
   footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--paper-line); font-size: 0.75rem; color: var(--ink-soft); }
 
+  button.debrief-btn { border-color: var(--brass-dark); color: var(--brass-dark); margin-right: 0.5rem; }
+  button.debrief-btn:hover { background: var(--brass-dark); color: var(--paper); }
+
+  .debrief-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+    border: 1px solid var(--paper-line);
+    background: rgba(255,255,255,0.35);
+    margin-bottom: 2rem;
+  }
+  .debrief-col { padding: 1.2rem 1.3rem; border-right: 1px solid var(--paper-line); }
+  .debrief-col:last-child { border-right: none; }
+  .debrief-heading {
+    font-size: 1rem;
+    font-style: italic;
+    margin-bottom: 1rem;
+    padding-bottom: 0.6rem;
+    border-bottom: 1px solid var(--paper-line);
+  }
+  .debrief-entry {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.6rem;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--paper-line);
+    font-size: 0.9rem;
+  }
+  .debrief-entry:last-child { border-bottom: none; }
+  .tier-tag {
+    font-family: "Courier New", monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    padding: 0.15rem 0.5rem;
+    border: 1px solid;
+    border-radius: 2px;
+    white-space: nowrap;
+  }
+  .tier-tag.clean { color: var(--seal-pass); border-color: var(--seal-pass); }
+  .tier-tag.corrected { color: var(--seal-warn); border-color: var(--seal-warn); }
+  .tier-tag.raised { color: var(--ink-soft); border-color: var(--ink-soft); }
+
   @media (max-width: 640px) {
     .ledger { grid-template-columns: 1fr 1fr; }
     .ledger-cell:nth-child(3n) { border-right: 1px solid var(--paper-line); }
     .ledger-cell:nth-child(2n) { border-right: none; }
     .entry { grid-template-columns: 2rem 1fr; }
     .stamp { grid-column: 2; margin-top: 0.4rem; transform: rotate(-2deg); }
+    .debrief-grid { grid-template-columns: 1fr; }
+    .debrief-col { border-right: none; border-bottom: 1px solid var(--paper-line); }
+    .debrief-col:last-child { border-bottom: none; }
   }
 </style>
 </head>
@@ -262,7 +310,13 @@
       </div>
     </div>
 
+    <button class="debrief-btn" onclick="showDebrief()">Show debrief</button>
     <button class="reset" onclick="resetScenario()">Reset scenario</button>
+  </section>
+
+  <section class="debrief-section" id="debrief-section" style="display:none;">
+    <h2>Learning Outcome Debrief</h2>
+    <div class="debrief-grid" id="debrief-grid"></div>
   </section>
 
   <section class="log">
@@ -278,6 +332,13 @@ const API_BASE = ''; // same origin
 let state = null;
 let entryCount = 0;
 let currentSlug = 'board-crisis';
+let allResults = [];
+
+const TIER_LABELS = {
+  clean: 'done correctly',
+  corrected: 'corrected after a block',
+  raised: 'considered',
+};
 
 async function freshState(slug) {
   const res = await fetch(`${API_BASE}/scenario/${slug}`);
@@ -351,15 +412,54 @@ async function act(actor_id, kind, payload, label) {
     body: JSON.stringify({state, action: {action_id, actor_id, kind, payload}}),
   });
   const result = await res.json();
+  allResults.push(...result.results);
   addEntry(label, result);
   state = result.state;
   render();
 }
 
+function renderDebriefColumn(heading, demonstrated, evidence) {
+  const body = demonstrated
+    ? evidence.map(e => `
+        <div class="debrief-entry">
+          <span>${e.label}</span>
+          <span class="tier-tag ${e.tier}">${TIER_LABELS[e.tier] || e.tier}</span>
+        </div>
+      `).join('')
+    : '<div class="empty">Not yet engaged in this run.</div>';
+  return `
+    <div class="debrief-col">
+      <div class="debrief-heading">${heading}</div>
+      ${body}
+    </div>
+  `;
+}
+
+async function showDebrief() {
+  const res = await fetch(`${API_BASE}/scenario/${currentSlug}/debrief`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({all_results: allResults}),
+  });
+  const debrief = await res.json();
+  document.getElementById('debrief-grid').innerHTML =
+    renderDebriefColumn(debrief.law_outcome_text, debrief.law_demonstrated, debrief.law_evidence) +
+    renderDebriefColumn(debrief.compliance_outcome_text, debrief.compliance_demonstrated, debrief.compliance_evidence);
+  const section = document.getElementById('debrief-section');
+  section.style.display = '';
+  section.scrollIntoView({behavior: 'smooth', block: 'start'});
+}
+
+function hideDebrief() {
+  document.getElementById('debrief-section').style.display = 'none';
+}
+
 async function resetScenario() {
   state = await freshState(currentSlug);
   entryCount = 0;
+  allResults = [];
   document.getElementById('entries').innerHTML = '<div class="empty">No minutes recorded yet. The board has not yet acted.</div>';
+  hideDebrief();
   render();
 }
 

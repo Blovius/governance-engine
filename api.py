@@ -9,6 +9,7 @@ Exposes:
   GET  /                              - the click-through demo front end
   GET  /scenario/{slug}                - fresh initial state for a scenario
   POST /scenario/{slug}/step           - take one action, get the result
+  POST /scenario/{slug}/debrief         - summarise learning outcomes evidenced across a run
 
 This is a thin transport layer. It does not change the engine at all -
 it just serialises DecisionState/Action in and StepResult out. All the
@@ -28,8 +29,11 @@ import os
 
 from core.state import DecisionState, ActorState, DecisionMode
 from core.actions import Action
+from core.constraints import ConstraintResult, ConstraintStatus, Mode
+from core.debrief import build_debrief
 from simulate.simulation import Simulation
 from llm.interface import Narrator
+from knowledge.outcomes import OUTCOMES, RULE_OUTCOME_MAP
 import scenarios.board_crisis as board_crisis
 import scenarios.loan_capital_dissolution as loan_capital_dissolution
 
@@ -127,6 +131,18 @@ class StepIn(BaseModel):
     action: ActionIn
 
 
+class ResultIn(BaseModel):
+    rule_id: str
+    status: str
+    mode: str
+    applies: bool
+    message: str = ""
+
+
+class DebriefIn(BaseModel):
+    all_results: List[ResultIn]
+
+
 @app.get("/api/health")
 def health():
     return {"status": "ok", "engine": "governance_engine v0", "scenarios": list(_SCENARIOS.keys())}
@@ -166,7 +182,39 @@ def step_scenario(slug: str, body: StepIn):
         "blocked": result.blocked,
         "narration": result.narration,
         "results": [
-            {"rule_id": r.rule_id, "status": r.status.value, "mode": r.mode.value, "message": r.message}
+            {
+                "rule_id": r.rule_id, "status": r.status.value, "mode": r.mode.value,
+                "applies": r.applies, "message": r.message,
+            }
             for r in result.results
         ],
+    }
+
+
+@app.post("/scenario/{slug}/debrief")
+def scenario_debrief(slug: str, body: DebriefIn):
+    """
+    Summarises which learning outcomes the session evidenced, from
+    every ConstraintResult the front end accumulated across the run.
+    Read-only: makes no governance decisions and changes no state.
+    """
+    module, _ = _SCENARIOS[slug]
+    results = [
+        ConstraintResult(
+            rule_id=r.rule_id,
+            status=ConstraintStatus(r.status),
+            mode=Mode(r.mode),
+            applies=r.applies,
+            message=r.message,
+        )
+        for r in body.all_results
+    ]
+    debrief = build_debrief(results, OUTCOMES[module.SCENARIO_ID], RULE_OUTCOME_MAP)
+    return {
+        "law_outcome_text": debrief.law_outcome_text,
+        "compliance_outcome_text": debrief.compliance_outcome_text,
+        "law_demonstrated": debrief.law_demonstrated,
+        "compliance_demonstrated": debrief.compliance_demonstrated,
+        "law_evidence": [{"rule_id": e.rule_id, "label": e.label, "tier": e.tier} for e in debrief.law_evidence],
+        "compliance_evidence": [{"rule_id": e.rule_id, "label": e.label, "tier": e.tier} for e in debrief.compliance_evidence],
     }
