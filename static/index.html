@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Board Minutes — Related Party Contract</title>
+<style>
+  :root {
+    --paper: #f2efe6;
+    --paper-line: #d9d3c2;
+    --ink: #1e2430;
+    --ink-soft: #4a5164;
+    --brass: #9c7a3c;
+    --brass-dark: #7a5f2c;
+    --seal-pass: #2f5233;
+    --seal-block: #7a2e2e;
+    --seal-warn: #8a6a1f;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    background-image:
+      linear-gradient(var(--paper-line) 1px, transparent 1px);
+    background-size: 100% 2.1em;
+    color: var(--ink);
+    font-family: "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+    line-height: 1.5;
+  }
+  .wrap { max-width: 900px; margin: 0 auto; padding: 3rem 2rem 6rem; }
+
+  header { border-bottom: 3px double var(--ink); padding-bottom: 1.1rem; margin-bottom: 2rem; }
+  .eyebrow {
+    font-family: "Courier New", monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--brass-dark);
+  }
+  h1 { font-size: 1.9rem; margin: 0.2rem 0 0.15rem; font-weight: 600; }
+  .subtitle { color: var(--ink-soft); font-size: 0.95rem; font-style: italic; }
+
+  .tabs { display: flex; gap: 0.5rem; margin-top: 1rem; }
+  .scenario-tab {
+    font-family: "Courier New", monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.04em;
+    padding: 0.4rem 0.8rem;
+    background: transparent;
+    border: 1px solid var(--paper-line);
+    border-bottom: none;
+    color: var(--ink-soft);
+    cursor: pointer;
+    border-radius: 2px 2px 0 0;
+  }
+  .scenario-tab.active { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  .scenario-tab:hover:not(.active) { border-color: var(--ink-soft); color: var(--ink); }
+
+  .ledger {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0;
+    border: 1px solid var(--paper-line);
+    background: rgba(255,255,255,0.35);
+    margin-bottom: 2rem;
+  }
+  .ledger-cell {
+    padding: 0.8rem 1rem;
+    border-right: 1px solid var(--paper-line);
+    border-bottom: 1px solid var(--paper-line);
+  }
+  .ledger-cell:nth-child(3n) { border-right: none; }
+  .ledger-label {
+    font-family: "Courier New", monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    display: block;
+    margin-bottom: 0.2rem;
+  }
+  .ledger-value { font-size: 1rem; font-weight: 600; }
+  .ledger-value.flag-true { color: var(--seal-block); }
+  .ledger-value.flag-false { color: var(--seal-pass); }
+
+  .present-row { margin-bottom: 2rem; }
+  .present-label { font-family: "Courier New", monospace; font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-soft); margin-bottom: 0.5rem; }
+  .chip-row { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+  .chip {
+    font-size: 0.82rem;
+    padding: 0.25rem 0.7rem;
+    border: 1px solid var(--ink-soft);
+    border-radius: 2px;
+    background: rgba(255,255,255,0.5);
+  }
+  .chip.absent { opacity: 0.35; text-decoration: line-through; border-style: dashed; }
+  .chip .role { color: var(--brass-dark); font-size: 0.72rem; }
+
+  section.actions { margin-bottom: 2.5rem; }
+  .actions h2, .log h2 {
+    font-family: "Courier New", monospace;
+    font-size: 0.78rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    border-bottom: 1px solid var(--paper-line);
+    padding-bottom: 0.4rem;
+    margin-bottom: 1rem;
+  }
+  .action-group { margin-bottom: 1.1rem; }
+  .action-group-label { font-size: 0.78rem; color: var(--ink-soft); margin-bottom: 0.4rem; font-style: italic; }
+  .btn-row { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+  button {
+    font-family: inherit;
+    font-size: 0.88rem;
+    padding: 0.5rem 0.9rem;
+    background: transparent;
+    border: 1px solid var(--ink);
+    color: var(--ink);
+    cursor: pointer;
+    border-radius: 2px;
+    transition: background 0.12s, color 0.12s;
+  }
+  button:hover { background: var(--ink); color: var(--paper); }
+  button.brass { border-color: var(--brass-dark); color: var(--brass-dark); }
+  button.brass:hover { background: var(--brass-dark); color: var(--paper); }
+  button.reset { border-color: var(--seal-block); color: var(--seal-block); float: right; }
+  button.reset:hover { background: var(--seal-block); color: var(--paper); }
+
+  .log { margin-top: 1rem; }
+  .entry {
+    display: grid;
+    grid-template-columns: 2.6rem 1fr auto;
+    gap: 1rem;
+    align-items: start;
+    padding: 0.9rem 0;
+    border-bottom: 1px solid var(--paper-line);
+  }
+  .entry-no {
+    font-family: "Courier New", monospace;
+    font-size: 0.85rem;
+    color: var(--ink-soft);
+    padding-top: 0.15rem;
+  }
+  .entry-body .desc { font-size: 0.92rem; margin-bottom: 0.3rem; }
+  .entry-body .narration { font-size: 0.88rem; color: var(--ink-soft); font-style: italic; }
+  .entry-body .rule {
+    font-family: "Courier New", monospace;
+    font-size: 0.78rem;
+    margin-top: 0.3rem;
+    padding-left: 0.6rem;
+    border-left: 2px solid var(--paper-line);
+  }
+  .entry-body .rule.rule-block { border-left-color: var(--seal-block); color: var(--seal-block); }
+  .entry-body .rule.rule-warn { border-left-color: var(--seal-warn); color: var(--seal-warn); }
+
+  .stamp {
+    font-family: "Courier New", monospace;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    padding: 0.25rem 0.6rem;
+    border: 2px solid;
+    border-radius: 3px;
+    transform: rotate(-3deg);
+    white-space: nowrap;
+    height: fit-content;
+  }
+  .stamp.pass { color: var(--seal-pass); border-color: var(--seal-pass); }
+  .stamp.block { color: var(--seal-block); border-color: var(--seal-block); }
+
+  .empty { color: var(--ink-soft); font-style: italic; font-size: 0.9rem; padding: 1rem 0; }
+
+  footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--paper-line); font-size: 0.75rem; color: var(--ink-soft); }
+
+  @media (max-width: 640px) {
+    .ledger { grid-template-columns: 1fr 1fr; }
+    .ledger-cell:nth-child(3n) { border-right: 1px solid var(--paper-line); }
+    .ledger-cell:nth-child(2n) { border-right: none; }
+    .entry { grid-template-columns: 2rem 1fr; }
+    .stamp { grid-column: 2; margin-top: 0.4rem; transform: rotate(-2deg); }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="eyebrow">Minute Book · Scenario Demonstrator</div>
+    <h1 id="scenario-title">Related Party Contract</h1>
+    <div class="subtitle" id="scenario-subtitle">A board of five considers a £750,000 contract with a director's connected party</div>
+    <div class="tabs">
+      <button class="scenario-tab active" data-slug="board-crisis" onclick="switchScenario('board-crisis')">Week 3 · Board of Directors</button>
+      <button class="scenario-tab" data-slug="loan-capital-dissolution" onclick="switchScenario('loan-capital-dissolution')">Week 9 · Loan Capital &amp; Dissolution</button>
+    </div>
+  </header>
+
+  <div class="ledger" id="ledger"></div>
+
+  <div class="present-row">
+    <div class="present-label">Present at table</div>
+    <div class="chip-row" id="chips"></div>
+  </div>
+
+  <section class="actions">
+    <h2>Actions</h2>
+
+    <div id="board-crisis-actions">
+      <div class="action-group">
+        <div class="action-group-label">The conflict</div>
+        <div class="btn-row">
+          <button onclick="act('exec_director','declare_interest',{matter_id:'related_party_contract'},'exec_director declares the interest')">Declare interest</button>
+          <button onclick="act('chair','authorise_participation',{matter_id:'related_party_contract'},'Board authorises participation despite the conflict')">Authorise participation</button>
+        </div>
+      </div>
+
+      <div class="action-group">
+        <div class="action-group-label">Who is in the room</div>
+        <div class="btn-row">
+          <button class="brass" onclick="act('ned_1','leave_room',{},'ned_1 leaves the room')">ned_1 leaves</button>
+          <button class="brass" onclick="act('ned_2','leave_room',{},'ned_2 leaves the room')">ned_2 leaves</button>
+          <button class="brass" onclick="act('ned_1','enter_room',{},'ned_1 returns')">ned_1 returns</button>
+          <button class="brass" onclick="act('ned_2','enter_room',{},'ned_2 returns')">ned_2 returns</button>
+        </div>
+      </div>
+
+      <div class="action-group">
+        <div class="action-group-label">The vote and its consequences</div>
+        <div class="btn-row">
+          <button onclick="act('exec_director','vote',{matter_id:'related_party_contract',outcome:'approved'},'exec_director votes to approve')">Vote to approve</button>
+          <button onclick="act('chair','close_contract',{},'Chair moves to close the contract')">Close contract</button>
+          <button onclick="act('chair','file_notification',{},'Chair files the regulatory notification')">File notification</button>
+        </div>
+      </div>
+
+      <div class="action-group">
+        <div class="action-group-label">Payment</div>
+        <div class="btn-row">
+          <button onclick="act('cfo','authorise_payment',{amount:750000},'CFO authorises payment of £750,000 (full value)')">Authorise £750,000</button>
+          <button onclick="act('cfo','authorise_payment',{amount:150000},'CFO authorises payment of £150,000 (within reserves)')">Authorise £150,000</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="loan-capital-actions">
+      <div class="action-group">
+        <div class="action-group-label">Trading deteriorates</div>
+        <div class="btn-row">
+          <button onclick="act('cfo','record_trading_update',{asset_delta:-250000},'CFO records a £250,000 trading loss')">Record £250,000 loss</button>
+          <button onclick="act('cfo','record_trading_update',{asset_delta:-50000,no_reasonable_prospect_flag:true},'A further £50,000 loss — no reasonable prospect of recovery')">Record further £50,000 loss (crosses into no reasonable prospect)</button>
+        </div>
+      </div>
+
+      <div class="action-group">
+        <div class="action-group-label">The board's response</div>
+        <div class="btn-row">
+          <button onclick="act('chair','vote',{matter_id:'routine',outcome:'approved'},'Chair calls a routine vote')">Take a routine vote</button>
+          <button onclick="act('cfo','incur_new_credit',{amount:20000},'CFO seeks to raise £20,000 in new credit')">Raise £20,000 new credit</button>
+          <button class="brass" onclick="act('chair','seek_advice',{},'Board seeks professional insolvency advice')">Seek professional advice</button>
+          <button class="brass" onclick="act('chair','cease_trading',{},'Board resolves to cease trading')">Cease trading</button>
+        </div>
+      </div>
+    </div>
+
+    <button class="reset" onclick="resetScenario()">Reset scenario</button>
+  </section>
+
+  <section class="log">
+    <h2>Minutes</h2>
+    <div id="entries"></div>
+  </section>
+
+  <footer>Governance Engine demonstrator · deterministic symbolic reasoning, no network call in the reasoning path</footer>
+</div>
+
+<script>
+const API_BASE = ''; // same origin
+let state = null;
+let entryCount = 0;
+let currentSlug = 'board-crisis';
+
+async function freshState(slug) {
+  const res = await fetch(`${API_BASE}/scenario/${slug}`);
+  return res.json();
+}
+
+function roleLabel(role) {
+  return {chair: 'Chair', non_executive_director: 'NED', cfo: 'CFO', executive_director: 'Exec. Director'}[role] || role;
+}
+
+function render() {
+  const facts = state.facts;
+  if (currentSlug === 'board-crisis') {
+    document.getElementById('ledger').innerHTML = `
+      <div class="ledger-cell"><span class="ledger-label">Contract value</span><span class="ledger-value">£${facts.contract_value.toLocaleString()}</span></div>
+      <div class="ledger-cell"><span class="ledger-label">Distributable reserves</span><span class="ledger-value">£${facts.distributable_reserves.toLocaleString()}</span></div>
+      <div class="ledger-cell"><span class="ledger-label">Minute</span><span class="ledger-value">${state.step}</span></div>
+      <div class="ledger-cell"><span class="ledger-label">Filing required</span><span class="ledger-value ${facts.filing_required ? 'flag-true' : 'flag-false'}">${facts.filing_required ? 'Yes' : 'Not yet'}</span></div>
+      <div class="ledger-cell"><span class="ledger-label">Notification filed</span><span class="ledger-value ${!facts.notification_filed && facts.filing_required ? 'flag-true' : 'flag-false'}">${facts.notification_filed ? 'Yes' : 'No'}</span></div>
+      <div class="ledger-cell"><span class="ledger-label">Contract closed</span><span class="ledger-value ${facts.contract_closed ? 'flag-false' : ''}">${facts.contract_closed ? 'Yes' : 'No'}</span></div>
+    `;
+  } else {
+    document.getElementById('ledger').innerHTML = `
+      <div class="ledger-cell"><span class="ledger-label">Total assets</span><span class="ledger-value">£${facts.total_assets.toLocaleString()}</span></div>
+      <div class="ledger-cell"><span class="ledger-label">Total liabilities</span><span class="ledger-value">£${facts.total_liabilities.toLocaleString()}</span></div>
+      <div class="ledger-cell"><span class="ledger-label">Minute</span><span class="ledger-value">${state.step}</span></div>
+      <div class="ledger-cell"><span class="ledger-label">Solvent</span><span class="ledger-value ${facts.solvent ? 'flag-false' : 'flag-true'}">${facts.solvent ? 'Yes' : 'No — insolvent'}</span></div>
+      <div class="ledger-cell"><span class="ledger-label">No reasonable prospect</span><span class="ledger-value ${facts.no_reasonable_prospect ? 'flag-true' : 'flag-false'}">${facts.no_reasonable_prospect ? 'Yes' : 'No'}</span></div>
+      <div class="ledger-cell"><span class="ledger-label">Advice sought</span><span class="ledger-value ${facts.advice_sought ? 'flag-false' : ''}">${facts.advice_sought ? 'Yes' : 'No'}</span></div>
+    `;
+  }
+
+  const present = new Set(facts.present_actor_ids || state.actors.map(a => a.actor_id));
+  document.getElementById('chips').innerHTML = state.actors.map(a => `
+    <span class="chip ${present.has(a.actor_id) ? '' : 'absent'}">
+      ${a.actor_id} <span class="role">· ${roleLabel(a.role)}</span>
+    </span>
+  `).join('');
+
+  document.getElementById('board-crisis-actions').style.display = currentSlug === 'board-crisis' ? '' : 'none';
+  document.getElementById('loan-capital-actions').style.display = currentSlug === 'loan-capital-dissolution' ? '' : 'none';
+}
+
+function addEntry(label, result) {
+  entryCount += 1;
+  const el = document.getElementById('entries');
+  const rules = result.results.filter(r => r.status !== 'pass');
+  const stampClass = result.blocked ? 'block' : 'pass';
+  const stampText = result.blocked ? 'NOT PASSED' : 'PASSED';
+
+  const div = document.createElement('div');
+  div.className = 'entry';
+  div.innerHTML = `
+    <div class="entry-no">${entryCount}.</div>
+    <div class="entry-body">
+      <div class="desc">${label}</div>
+      ${result.narration ? `<div class="narration">${result.narration}</div>` : ''}
+      ${rules.map(r => `<div class="rule rule-${r.status}">[${r.mode.toUpperCase()}] ${r.rule_id} — ${r.message}</div>`).join('')}
+    </div>
+    <div class="stamp ${stampClass}">${stampText}</div>
+  `;
+  el.appendChild(div);
+  div.scrollIntoView({behavior: 'smooth', block: 'end'});
+}
+
+async function act(actor_id, kind, payload, label) {
+  const action_id = `a${Date.now()}`;
+  const res = await fetch(`${API_BASE}/scenario/${currentSlug}/step`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({state, action: {action_id, actor_id, kind, payload}}),
+  });
+  const result = await res.json();
+  addEntry(label, result);
+  state = result.state;
+  render();
+}
+
+async function resetScenario() {
+  state = await freshState(currentSlug);
+  entryCount = 0;
+  document.getElementById('entries').innerHTML = '<div class="empty">No minutes recorded yet. The board has not yet acted.</div>';
+  render();
+}
+
+async function switchScenario(slug) {
+  currentSlug = slug;
+  document.querySelectorAll('.scenario-tab').forEach(t => t.classList.toggle('active', t.dataset.slug === slug));
+  const meta = {
+    'board-crisis': {
+      title: 'Related Party Contract',
+      subtitle: "A board of five considers a £750,000 contract with a director's connected party",
+    },
+    'loan-capital-dissolution': {
+      title: 'The Zone of Insolvency',
+      subtitle: 'A board of three watches solvency deteriorate across a run of trading updates',
+    },
+  }[slug];
+  document.getElementById('scenario-title').textContent = meta.title;
+  document.getElementById('scenario-subtitle').textContent = meta.subtitle;
+  await resetScenario();
+}
+
+switchScenario('board-crisis');
+</script>
+</body>
+</html>
